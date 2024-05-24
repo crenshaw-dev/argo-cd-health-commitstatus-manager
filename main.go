@@ -39,6 +39,11 @@ type AggregateStuff struct {
 	changed bool
 }
 
+type objKey struct {
+	repo     string
+	revision string
+}
+
 func main() {
 	klog.InitFlags(nil)
 	ctrl.SetLogger(zap.New(zap.WriteTo(os.Stdout)))
@@ -83,7 +88,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		panic(err)
 	}
 
-	aggregates := map[string][]*AggregateStuff{}
+	aggregates := map[objKey][]*AggregateStuff{}
 
 	apps, err := appLister.List(labels.NewSelector())
 	if err != nil {
@@ -167,7 +172,11 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		stuff.status = &currentCommitStatus
 		stuff.changed = true // Should check if there is a no-op
 
-		aggregates[aggregateKey(app)] = append(aggregates[aggregateKey(app)], stuff)
+		key := objKey{
+			repo:     app.Spec.SourceHydrator.GetApplicationSource().RepoURL,
+			revision: app.Spec.SourceHydrator.GetApplicationSource().TargetRevision,
+		}
+		aggregates[key] = append(aggregates[key], stuff)
 	}
 
 	// Creates aggregated status
@@ -183,8 +192,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 			continue
 		}
 
-		repo, revision := splitKey(key)
-		// TODO: Resolve revision to a sha
+		repo, revision := key.repo, key.revision
 		resolveShaCmd := exec.Command("git", "ls-remote", repo, revision)
 		out, err := resolveShaCmd.CombinedOutput()
 		if err != nil {
@@ -226,14 +234,6 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		}
 
 	}
-}
-
-func aggregateKey(app *v1alpha1.Application) string {
-	return strings.Join([]string{app.Spec.SourceHydrator.GetApplicationSource().RepoURL, app.Spec.SourceHydrator.GetApplicationSource().TargetRevision}, "----")
-}
-func splitKey(key string) (repo string, revision string) {
-	s := strings.Split(key, "----")
-	return s[0], s[1]
 }
 
 func hash(data []byte) string {
