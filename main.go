@@ -126,7 +126,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		desiredCommitStatus := promoter_v1alpha1.CommitStatus{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      resourceName,
-				Namespace: "default",
+				Namespace: "argocd",
 				Labels: map[string]string{
 					CommitStatusAnnotation: "app-healthy",
 				},
@@ -137,7 +137,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 					Name:  repo,
 					ScmProviderRef: promoter_v1alpha1.NamespacedObjectReference{
 						Name:      "scmprovider-example",
-						Namespace: "default",
+						Namespace: "argocd",
 					},
 				},
 				Sha:         app.Status.Sync.Revision,
@@ -149,7 +149,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		}
 
 		currentCommitStatus := promoter_v1alpha1.CommitStatus{}
-		err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: "default", Name: resourceName}, &currentCommitStatus)
+		err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: "argocd", Name: resourceName}, &currentCommitStatus)
 		if err != nil {
 			if client.IgnoreNotFound(err) != nil {
 				panic(err)
@@ -255,7 +255,7 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 	desiredCommitStatus := promoter_v1alpha1.CommitStatus{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: "default",
+			Namespace: "argocd",
 			Labels: map[string]string{
 				CommitStatusAnnotation: "healthy",
 			},
@@ -266,7 +266,7 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 				Name:  repository,
 				ScmProviderRef: promoter_v1alpha1.NamespacedObjectReference{
 					Name:      "scmprovider-example",
-					Namespace: "default",
+					Namespace: "argocd",
 				},
 			},
 			Sha:         sha,
@@ -278,7 +278,7 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 	}
 
 	currentCommitStatus := promoter_v1alpha1.CommitStatus{}
-	err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: "default", Name: resourceName}, &currentCommitStatus)
+	err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: "argocd", Name: resourceName}, &currentCommitStatus)
 	if err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			panic(err)
