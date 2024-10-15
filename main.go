@@ -111,10 +111,10 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		// Get owner and repo name from the GitHub URL
 		// FIXME: support more than just GitHub
 		owner := repoURL.Path[1 : strings.Index(repoURL.Path[1:], "/")+1]
-		repo := repoURL.Path[strings.LastIndex(repoURL.Path, "/")+1:]
+		repo := strings.TrimRight(repoURL.Path[strings.LastIndex(repoURL.Path, "/")+1:], ".git")
 
 		state := promoter_v1alpha1.CommitPhasePending
-		if app.Status.Health.Status == health.HealthStatusHealthy {
+		if app.Status.Health.Status == health.HealthStatusHealthy && app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			state = promoter_v1alpha1.CommitPhaseSuccess
 		} else if app.Status.Health.Status == health.HealthStatusDegraded {
 			state = promoter_v1alpha1.CommitPhaseFailure
@@ -136,8 +136,8 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 					Owner: owner,
 					Name:  repo,
 					ScmProviderRef: promoter_v1alpha1.NamespacedObjectReference{
-						Name:      "scmprovider-example",
-						Namespace: "argocd",
+						Name:      "scmprovider-sample",
+						Namespace: "default",
 					},
 				},
 				Sha:         app.Status.Sync.Revision,
@@ -173,7 +173,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		stuff.changed = true // Should check if there is a no-op
 
 		key := objKey{
-			repo:     app.Spec.SourceHydrator.GetSyncSource().RepoURL,
+			repo:     strings.TrimRight(app.Spec.SourceHydrator.GetSyncSource().RepoURL, ".git"),
 			revision: app.Spec.SourceHydrator.GetSyncSource().TargetRevision,
 		}
 		aggregates[key] = append(aggregates[key], stuff)
@@ -247,7 +247,7 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 		panic(err)
 	}
 	owner := repoURL.Path[1 : strings.Index(repoURL.Path[1:], "/")+1]
-	repository := repoURL.Path[strings.LastIndex(repoURL.Path, "/")+1:]
+	repository := strings.TrimRight(repoURL.Path[strings.LastIndex(repoURL.Path, "/")+1:], ".git")
 
 	commitStatusName := revision + "/health"
 	resourceName := strings.ReplaceAll(commitStatusName, "/", "-") + "-" + hash([]byte(repo))
@@ -265,8 +265,8 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 				Owner: owner,
 				Name:  repository,
 				ScmProviderRef: promoter_v1alpha1.NamespacedObjectReference{
-					Name:      "scmprovider-example",
-					Namespace: "argocd",
+					Name:      "scmprovider-sample",
+					Namespace: "default",
 				},
 			},
 			Sha:         sha,
