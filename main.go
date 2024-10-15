@@ -3,22 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/cespare/xxhash/v2"
+	"k8s.io/klog/v2"
 	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
 
+	promoter_v1alpha1 "github.com/argoproj-labs/gitops-promoter/api/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	listers "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/cespare/xxhash/v2"
-	promoter_v1alpha1 "github.com/zachaller/promoter/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"time"
@@ -113,11 +113,11 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		owner := repoURL.Path[1 : strings.Index(repoURL.Path[1:], "/")+1]
 		repo := repoURL.Path[strings.LastIndex(repoURL.Path, "/")+1:]
 
-		state := promoter_v1alpha1.CommitStatusPending
+		state := promoter_v1alpha1.CommitPhasePending
 		if app.Status.Health.Status == health.HealthStatusHealthy {
-			state = promoter_v1alpha1.CommitStatusSuccess
+			state = promoter_v1alpha1.CommitPhaseSuccess
 		} else if app.Status.Health.Status == health.HealthStatusDegraded {
-			state = promoter_v1alpha1.CommitStatusFailure
+			state = promoter_v1alpha1.CommitPhaseFailure
 		}
 
 		commitStatusName := app.Name + "/health"
@@ -143,7 +143,7 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 				Sha:         app.Status.Sync.Revision,
 				Name:        commitStatusName,
 				Description: fmt.Sprintf("App %s is %s", app.Name, state),
-				State:       state,
+				Phase:       state,
 				Url:         "https://example.com",
 			},
 		}
@@ -173,8 +173,8 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		stuff.changed = true // Should check if there is a no-op
 
 		key := objKey{
-			repo:     app.Spec.SourceHydrator.GetApplicationSource().RepoURL,
-			revision: app.Spec.SourceHydrator.GetApplicationSource().TargetRevision,
+			repo:     app.Spec.SourceHydrator.GetSyncSource().RepoURL,
+			revision: app.Spec.SourceHydrator.GetSyncSource().TargetRevision,
 		}
 		aggregates[key] = append(aggregates[key], stuff)
 	}
@@ -201,16 +201,16 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		resolvedSha := strings.Split(string(out), "\t")[0]
 
 		desc := ""
-		resolvedState := promoter_v1alpha1.CommitStatusPending
+		resolvedState := promoter_v1alpha1.CommitPhasePending
 		pending := 0
 		healthy := 0
 		degraded := 0
 		for _, s := range stuff {
 			if s.status.Spec.Sha != resolvedSha {
 				pending++
-			} else if s.status.Spec.State == promoter_v1alpha1.CommitStatusSuccess {
+			} else if s.status.Spec.Phase == promoter_v1alpha1.CommitPhaseSuccess {
 				healthy++
-			} else if s.status.Spec.State == promoter_v1alpha1.CommitStatusFailure {
+			} else if s.status.Spec.Phase == promoter_v1alpha1.CommitPhaseFailure {
 				degraded++
 			} else {
 				pending++
@@ -219,10 +219,10 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 
 		//Resolve state
 		if healthy == len(stuff) {
-			resolvedState = promoter_v1alpha1.CommitStatusSuccess
+			resolvedState = promoter_v1alpha1.CommitPhaseSuccess
 			desc = fmt.Sprintf("%d/%d apps are healthy", healthy, len(stuff))
 		} else if degraded == len(stuff) {
-			resolvedState = promoter_v1alpha1.CommitStatusFailure
+			resolvedState = promoter_v1alpha1.CommitPhaseFailure
 			desc = fmt.Sprintf("%d/%d apps are degraded", healthy, len(stuff))
 		} else {
 			desc = fmt.Sprintf("Waiting for apps to be healthy (%d/%d healthy, %d/%d degraded, %d/%d pending)", healthy, len(stuff), degraded, len(stuff), pending, len(stuff))
@@ -240,7 +240,7 @@ func hash(data []byte) string {
 	return strconv.FormatUint(xxhash.Sum64(data), 8)
 }
 
-func updateAggregatedStatus(kubeClient client.Client, revision string, repo string, sha string, state promoter_v1alpha1.CommitStatusState, desc string) error {
+func updateAggregatedStatus(kubeClient client.Client, revision string, repo string, sha string, state promoter_v1alpha1.CommitStatusPhase, desc string) error {
 
 	repoURL, err := url.Parse(repo)
 	if err != nil {
@@ -272,7 +272,7 @@ func updateAggregatedStatus(kubeClient client.Client, revision string, repo stri
 			Sha:         sha,
 			Name:        commitStatusName,
 			Description: desc,
-			State:       state,
+			Phase:       state,
 			Url:         "https://example.com",
 		},
 	}
