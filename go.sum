@@ -24,8 +24,6 @@ github.com/alicebob/miniredis/v2 v2.33.0/go.mod h1:MhP4a3EU7aENRi9aO+tHfTBZicLqQ
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be/go.mod h1:ySMOLuWl6zY27l47sB3qLNK6tF2fkHG55UZxx8oIVo4=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argoproj-labs/gitops-promoter v0.0.0-20241010165917-f0689b719100 h1:KrXOOgAw+PpfxxPIRFtpxW/ZSOLeJ8G+asEUA0IuGuw=
-github.com/argoproj-labs/gitops-promoter v0.0.0-20241010165917-f0689b719100/go.mod h1:Rf+T8gybNTtEo72Rq5qhutGyGBab1YzannOghjo/1VU=
 github.com/argoproj-labs/gitops-promoter v0.0.0-20241023002625-fad5678db616 h1:8xEL/PD7vwP/q+XLEa4qiD9soNkD2mnG9U4/JnpNJ00=
 github.com/argoproj-labs/gitops-promoter v0.0.0-20241023002625-fad5678db616/go.mod h1:SuN3/Zw0qFmSMka53po6d/m8j/pjdJHO9ZkfovLrRwI=
 github.com/argoproj/gitops-engine v0.7.1-0.20240917171920-72bcdda3f0a5 h1:K/e+NsNmE4BccRu21QpqUxkTHxU9YWjU3M775Ck+V/E=

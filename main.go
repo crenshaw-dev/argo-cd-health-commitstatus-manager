@@ -112,6 +112,59 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 		commitStatusName := app.Name + "/health"
 		resourceName := strings.ReplaceAll(commitStatusName, "/", "-")
 
+		if strings.Contains(app.Name, "production-use2") {
+			// For HCAP demo
+			hcapCommitStatus := promoter_v1alpha1.CommitStatus{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "hcap",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						CommitStatusAnnotation: "hcap",
+					},
+					Annotations: map[string]string{
+						"hcapActive": "true",
+					},
+				},
+				Spec: promoter_v1alpha1.CommitStatusSpec{
+					RepositoryReference: promoter_v1alpha1.ObjectReference{
+						Name: "argocon-demo",
+					},
+					Sha:         app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA,
+					Name:        "production/hcap",
+					Description: fmt.Sprintf("HCAP check for production"),
+					//Phase:       "pending",
+					Url: "https://example.com",
+				},
+			}
+			currentCommitStatus := promoter_v1alpha1.CommitStatus{}
+			err = kubeClient.Get(context.Background(), client.ObjectKey{Namespace: "argocd", Name: "hcap"}, &currentCommitStatus)
+			if err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					panic(err)
+				}
+				// Create
+				hcapCommitStatus.Spec.Phase = "pending"
+				err = kubeClient.Create(context.Background(), &hcapCommitStatus)
+				if err != nil {
+					panic(err)
+				}
+				currentCommitStatus = hcapCommitStatus
+			} else {
+				if currentCommitStatus.Annotations["hcapActive"] == "false" {
+					currentCommitStatus.Spec.Phase = promoter_v1alpha1.CommitPhaseSuccess
+				} else {
+					currentCommitStatus.Spec.Phase = promoter_v1alpha1.CommitPhasePending
+				}
+				currentPhase := currentCommitStatus.Spec.Phase
+				currentCommitStatus.Spec = hcapCommitStatus.Spec
+				currentCommitStatus.Spec.Phase = currentPhase
+				err = kubeClient.Update(context.Background(), &currentCommitStatus)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+
 		desiredCommitStatus := promoter_v1alpha1.CommitStatus{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      resourceName,
@@ -176,13 +229,25 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 			continue
 		}
 
+		var resolvedSha string
+		var i int
 		repo, revision := key.repo, key.revision
-		resolveShaCmd := exec.Command("git", "ls-remote", repo, revision)
-		out, err := resolveShaCmd.CombinedOutput()
-		if err != nil {
-			panic(err)
+		for {
+			i++
+			resolveShaCmd := exec.Command("git", "ls-remote", repo, revision)
+			out, err := resolveShaCmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				time.Sleep(500 * time.Millisecond)
+				if i <= 5 {
+					continue
+				} else {
+					panic(err)
+				}
+			}
+			resolvedSha = strings.Split(string(out), "\t")[0]
+			break
 		}
-		resolvedSha := strings.Split(string(out), "\t")[0]
 
 		desc := ""
 		resolvedState := promoter_v1alpha1.CommitPhasePending
