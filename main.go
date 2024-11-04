@@ -229,13 +229,25 @@ func updateCommitStatuses(appLister listers.ApplicationLister) {
 			continue
 		}
 
+		var resolvedSha string
+		var i int
 		repo, revision := key.repo, key.revision
-		resolveShaCmd := exec.Command("git", "ls-remote", repo, revision)
-		out, err := resolveShaCmd.CombinedOutput()
-		if err != nil {
-			panic(err)
+		for {
+			i++
+			resolveShaCmd := exec.Command("git", "ls-remote", repo, revision)
+			out, err := resolveShaCmd.CombinedOutput()
+			if err != nil {
+				fmt.Println(string(out))
+				time.Sleep(500 * time.Millisecond)
+				if i <= 5 {
+					continue
+				} else {
+					panic(err)
+				}
+			}
+			resolvedSha = strings.Split(string(out), "\t")[0]
+			break
 		}
-		resolvedSha := strings.Split(string(out), "\t")[0]
 
 		desc := ""
 		resolvedState := promoter_v1alpha1.CommitPhasePending
